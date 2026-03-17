@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Django
+*.sqlite3
+/backend/staticfiles/
+/backend/media/uploads/*
+/backend/media/results/*
+!backend/media/uploads/.gitkeep
+!backend/media/results/.gitkeep
+
+# YOLO model (large binary — download via setup.sh)
+backend/detector/model/yolov8n.pt
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+frontend/build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.local
+.env.production

@@ -1,0 +1,150 @@
+import time
+import logging
+from pathlib import Path
+
+from django.conf import settings
+from rest_framework import status
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+
+from .models import DetectionRecord
+from .serializers import DetectRequestSerializer, DetectionRecordSerializer
+from .utils.detect import run_detection
+
+logger = logging.getLogger(__name__)
+
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def detect(request):
+    """
+    POST /api/detect/
+    Accepts a multipart image, runs YOLOv8, returns detections + result image URL.
+    """
+    serializer = DetectRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            {'error': 'Invalid request', 'details': serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    image_file = serializer.validated_data['image']
+
+    # Validate file type
+    allowed_types = {'image/jpeg', 'image/png', 'image/webp', 'image/bmp'}
+    if image_file.content_type not in allowed_types:
+        return Response(
+            {'error': f'Unsupported file type: {image_file.content_type}. '
+                      f'Allowed: JPEG, PNG, WEBP, BMP'},
+            status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        )
+
+    # Save uploaded image
+    record = DetectionRecord(uploaded_image=image_file)
+    record.save()
+
+    # Run detection
+    t0 = time.perf_counter()
+    try:
+        result = run_detection(record.uploaded_image.path)
+    except Exception as exc:
+        logger.exception("Detection failed")
+        record.delete()
+        return Response(
+            {'error': 'Detection failed', 'details': str(exc)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    # Persist result
+    record.set_detections(result['detections'])
+    record.result_image = result['result_image_url']
+    record.object_count = result['object_count']
+    record.unique_labels = ', '.join(result['unique_labels'])
+    record.processing_time_ms = round(elapsed_ms, 1)
+    record.save()
+
+    # Build response
+    response_data = {
+        'id': record.pk,
+        'detections': result['detections'],
+        'result_image': result['result_image_url'],
+        'object_count': result['object_count'],
+        'unique_labels': result['unique_labels'],
+        'processing_time_ms': record.processing_time_ms,
+    }
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def history(request):
+    """
+    GET /api/history/
+    Returns paginated detection history (most recent first).
+    """
+    try:
+        page = max(1, int(request.query_params.get('page', 1)))
+        page_size = max(1, min(50, int(request.query_params.get('page_size', 10))))
+    except (ValueError, TypeError):
+        page, page_size = 1, 10
+
+    qs = DetectionRecord.objects.all()
+    total = qs.count()
+
+    start = (page - 1) * page_size
+    end = start + page_size
+    records = qs[start:end]
+
+    serializer = DetectionRecordSerializer(
+        records, many=True, context={'request': request}
+    )
+
+    return Response({
+        'results': serializer.data,
+        'total': total,
+        'page': page,
+        'page_size': page_size,
+        'total_pages': max(1, (total + page_size - 1) // page_size),
+    })
+
+
+@api_view(['DELETE'])
+def delete_record(request, pk):
+    """
+    DELETE /api/history/<pk>/
+    Removes a detection record and its associated files.
+    """
+    try:
+        record = DetectionRecord.objects.get(pk=pk)
+    except DetectionRecord.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Clean up uploaded image
+    try:
+        if record.uploaded_image and Path(record.uploaded_image.path).exists():
+            Path(record.uploaded_image.path).unlink()
+    except Exception:
+        pass
+
+    # Clean up result image — stored as "/media/results/<file>.jpg"
+    if record.result_image:
+        # Strip the /media prefix and resolve against MEDIA_ROOT
+        relative = record.result_image.lstrip('/')
+        if relative.startswith('media/'):
+            relative = relative[len('media/'):]
+        result_path = Path(settings.MEDIA_ROOT) / relative
+        try:
+            if result_path.exists():
+                result_path.unlink()
+        except Exception:
+            pass
+
+    record.delete()
+    return Response({'message': 'Deleted successfully'}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def health(request):
+    """GET /api/health/ — liveness probe."""
+    return Resp/api/detectonse({'status': 'ok', 'model': 'yolov8n'})

@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: "Space Grotesk", sans-serif;
+    color: #e2e8f0;
+    background-color: #0c0f0a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #111118;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #4f46e5;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6366f1;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(26, 26, 39, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+  }
+
+  .glass-strong {
+    background: rgba(17, 17, 24, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-neural-600 hover:bg-neural-500 active:bg-neural-700 text-white transition-all duration-200 shadow-lg shadow-neural-900/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm text-slate-400 hover:text-white hover:bg-surface-600 transition-all duration-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .section-heading {
+    @apply text-xs font-semibold uppercase tracking-widest text-neural-400;
+  }
+}
+
+/* Confidence bar fill animation */
+@keyframes barFill {
+  from {
+    width: 0;
+  }
+
+  to {
+    width: var(--pct);
+  }
+}
+
+.conf-bar {
+  animation: barFill 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Floating particles */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.3;
+  }
+
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+    opacity: 0.6;
+  }
+}
+
+.particle {
+  animation: float var(--dur, 6s) ease-in-out infinite;
+}
